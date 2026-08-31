@@ -17,57 +17,32 @@ extension ParseOutput {
     }
 }
 
+nonisolated(unsafe) private var nodeFlags: [ObjectIdentifier: Int] = [:]
+
 extension Node {
+    private var _flags: Int {
+        get { nodeFlags[ObjectIdentifier(self)] ?? 0 }
+        set { nodeFlags[ObjectIdentifier(self)] = newValue }
+    }
+
     var creationSkipped: Bool {
-        get {
-            flags & 0b0000_0001 != 0
-        }
-        set {
-            if newValue {
-                flags |= 0b0000_0001
-            } else {
-                flags &= 0b1111_1110
-            }
-        }
+        get { _flags & 0b0000_0001 != 0 }
+        set { _flags = newValue ? (_flags | 0b0000_0001) : (_flags & ~0b0000_0001) }
     }
 
     var created: Bool {
-        get {
-            flags & 0b0000_0010 != 0
-        }
-        set {
-            if newValue {
-                flags |= 0b0000_0010
-            } else {
-                flags &= 0b1111_1101
-            }
-        }
+        get { _flags & 0b0000_0010 != 0 }
+        set { _flags = newValue ? (_flags | 0b0000_0010) : (_flags & ~0b0000_0010) }
     }
 
     var updated: Bool {
-        get {
-            flags & 0b0000_0100 != 0
-        }
-        set {
-            if newValue {
-                flags |= 0b0000_0100
-            } else {
-                flags &= 0b1111_1011
-            }
-        }
+        get { _flags & 0b0000_0100 != 0 }
+        set { _flags = newValue ? (_flags | 0b0000_0100) : (_flags & ~0b0000_0100) }
     }
 
     var forcedUpdate: Bool {
-        get {
-            flags & 0b0000_1000 != 0
-        }
-        set {
-            if newValue {
-                flags |= 0b0000_1000
-            } else {
-                flags &= 0b1111_0111
-            }
-        }
+        get { _flags & 0b0000_1000 != 0 }
+        set { _flags = newValue ? (_flags | 0b0000_1000) : (_flags & ~0b0000_1000) }
     }
 }
 

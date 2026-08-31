@@ -54,7 +54,7 @@ enum InclusionSetting: Int {
 }
 
 enum Settings {
-    static var cache = Cache()
+    static var cache: Cache { Cache() }
 
     final class Cache {
         let labelFilterList = Set(Settings.labelBlacklist.map(\.comparableForm))
@@ -320,12 +320,11 @@ enum Settings {
             } else {
                 sharedDefaults.removeObject(forKey: key)
             }
-            Task {
-                cache = Cache()
-                #if os(macOS)
+            #if os(macOS)
+                Task {
                     possibleExport(key)
-                #endif
-            }
+                }
+            #endif
         }
     }
 

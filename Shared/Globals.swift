@@ -44,9 +44,47 @@ extension NSAttributedString.Key {
 }
 
 import KeyVine
+import Security
 import TrailerJson
 
-nonisolated(unsafe) var keyVine = KeyVine(appIdentifier: "com.housetrip.Trailer", teamId: "X727JSJUGJ")
+// LOCAL-RUN HACK: KeyVine requests the keychain access group
+// "X727JSJUGJ.com.housetrip.Trailer", which only the original author's signing
+// team can use. Under ad-hoc signing that fails with errSecMissingEntitlement
+// (-34018) and crashes on launch. This shim keeps the same subscript API but
+// uses a plain generic-password keychain entry with no access group, so it
+// works without proper provisioning. Revert to `KeyVine(...)` for a real build.
+struct LocalKeychain: Sendable {
+    let service: String
+
+    private var baseQuery: [CFString: Any] {
+        [kSecClass: kSecClassGenericPassword,
+         kSecAttrService: service]
+    }
+
+    subscript<T: KeyVineDataConvertible>(key: String) -> T? {
+        get {
+            var query = baseQuery
+            query[kSecAttrAccount] = key
+            query[kSecMatchLimit] = kSecMatchLimitOne
+            query[kSecReturnData] = kCFBooleanTrue
+            var item: AnyObject?
+            guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+                  let data = item as? Data else { return nil }
+            return T(keyVineData: data)
+        }
+        nonmutating set {
+            var query = baseQuery
+            query[kSecAttrAccount] = key
+            SecItemDelete(query as CFDictionary)
+            if let data = newValue?.keyVineData {
+                query[kSecValueData] = data
+                SecItemAdd(query as CFDictionary, nil)
+            }
+        }
+    }
+}
+
+nonisolated(unsafe) var keyVine = LocalKeychain(service: "com.housetrip.Trailer")
 
 @MainActor var preferencesDirty = false
 @MainActor var lastRepoCheck = Date.distantPast
