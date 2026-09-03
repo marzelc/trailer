@@ -17,12 +17,31 @@ extension ParseOutput {
     }
 }
 
-nonisolated(unsafe) private var nodeFlags: [ObjectIdentifier: Int] = [:]
+private final class NodeFlagsStore: @unchecked Sendable {
+    // Weak keys so an entry is purged the instant its Node deallocates, instead of
+    // lingering under a memory address that a later, unrelated Node could reuse.
+    private let table = NSMapTable<Node, NSNumber>(keyOptions: .weakMemory, valueOptions: .strongMemory)
+    private let lock = NSLock()
+
+    func get(_ node: Node) -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return table.object(forKey: node)?.intValue ?? 0
+    }
+
+    func set(_ node: Node, _ value: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        table.setObject(NSNumber(value: value), forKey: node)
+    }
+}
+
+nonisolated(unsafe) private let nodeFlagsStore = NodeFlagsStore()
 
 extension Node {
     private var _flags: Int {
-        get { nodeFlags[ObjectIdentifier(self)] ?? 0 }
-        set { nodeFlags[ObjectIdentifier(self)] = newValue }
+        get { nodeFlagsStore.get(self) }
+        set { nodeFlagsStore.set(self, newValue) }
     }
 
     var creationSkipped: Bool {
